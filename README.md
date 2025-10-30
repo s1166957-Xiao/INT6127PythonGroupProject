@@ -3,9 +3,13 @@ Topic: Intelligent Management System for Campus Express Stations Based on Python
 
 Members:
 Xiao Boersheng 11669576
+
 Li Yueming 11654923
+
 Zhao Zihan 11669318
+
 Zhen Tianying 11654478
+
 Zhang Fangzhe 11654894
 
 Background:
