@@ -11,7 +11,7 @@ Zhang Fangzhe 11654894
 Background:
 With the rapid development of the e-commerce industry, the national express delivery volume exceeded 120 billion pieces in 2024, making "last-mile delivery" a critical link in the logistics chain. Due to issues such as irregular delivery times and scattered addresses within campuses, campus delivery stations have become the mainstream solution to address the last-mile delivery challenge. According to the "2024 China Express Terminal Service Development Report", over 60% of packages are delivered through these stations, with an average daily processing volume of 300-800 pieces, and even exceeding 1,000 pieces during peak hours at campus stations.
 
-Plan/ Solution：
+Plan / Solution：
 In high-volume operational environments, express delivery stations increasingly require "efficient management tools" that address three core needs:
 First, enabling staff to quickly complete parcel registration, inventory classification, and delivery verification; Second, providing users with clear pickup guidance; Third, efficiently integrating operational data (such as daily shipment volumes and statistics on delayed parcels). These requirements collectively form the practical application scenarios of the "Express Delivery Station Management System".
 
