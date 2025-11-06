@@ -1,7 +1,8 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox,filedialog
 import re
 import pandas as pd
+import qrcode_load
 
 class Person:
     """人物类"""
@@ -48,35 +49,35 @@ class ExpressManagementSystem:
         # 初始化一些测试数据
         # self.init_test_data()
     
-    def init_test_data(self):
-        """初始化测试数据"""
-        # 创建测试人物
-        person1 = Person("P001", "张三")
-        person2 = Person("P002", "李四")
-        person3 = Person("P003", "王五")
+    # def init_test_data(self):
+    #     """初始化测试数据"""
+    #     # 创建测试人物
+    #     person1 = Person("P001", "张三")
+    #     person2 = Person("P002", "李四")
+    #     person3 = Person("P003", "王五")
         
-        self.people_dict = {
-            "P001": person1,
-            "P002": person2,
-            "P003": person3
-        }
+    #     self.people_dict = {
+    #         "P001": person1,
+    #         "P002": person2,
+    #         "P003": person3
+    #     }
         
-        # 创建测试快递
-        express1 = Express("E001", "123456", person1, person2, "A区1架", "易碎品")
-        express2 = Express("E002", "654321", person2, person3, "B区2架", "")
+    #     # 创建测试快递
+    #     express1 = Express("E001", "123456", person1, person2, "A区1架", "易碎品")
+    #     express2 = Express("E002", "654321", person2, person3, "B区2架", "")
         
-        self.express_dict = {
-            "E001": express1,
-            "E002": express2
-        }
+    #     self.express_dict = {
+    #         "E001": express1,
+    #         "E002": express2
+    #     }
         
-        self.pick_code_dict = {
-            "123456": "E001",
-            "654321": "E002"
-        }
+    #     self.pick_code_dict = {
+    #         "123456": "E001",
+    #         "654321": "E002"
+    #     }
         
-        # 更新显示
-        self.update_express_list()
+    #     # 更新显示
+    #     self.update_express_list()
     
     def load_user(self):
         self.df_user = pd.read_excel('user.xlsx', header = 0, engine='openpyxl')
@@ -168,6 +169,8 @@ class ExpressManagementSystem:
         tk.Button(self.tab_in, text="清空", command=self.clear_in_fields, 
                  bg="lightyellow", width=15).grid(row=9, column=0, columnspan=2, pady=5)
     
+        tk.Button(self.tab_in, text="QR码解析", command=self.qr_read, 
+                 bg="lightgreen", width=15).grid(row=10, column=0, columnspan=2, pady=10)
     def setup_out_tab(self):
         """设置取件标签页"""
         tk.Label(self.tab_out, text="请输入取件码:").pack(pady=10)
@@ -378,6 +381,20 @@ class ExpressManagementSystem:
         self.receiver_name_entry.delete(0, tk.END)
         self.location_entry.delete(0, tk.END)
         self.notes_entry.delete(0, tk.END)
+    def qr_read(self):
+        """读取并解析二维码"""
+        filepath = tk.filedialog.askopenfilename(title="选择二维码图片", 
+                                               filetypes=[("PNG图片", "*.png"), ("所有文件", "*.*")])
+        info = qrcode_load.read_express_qr_code(filepath)
+        self.express_id_entry.insert(0, info['express_id'])
+        self.pick_code_entry.insert(0, info['pick_code'])
+        self.sender_id_entry.insert(0, info['sender'])
+        self.sender_name_entry.insert(0, info['sender_name'])
+        self.receiver_id_entry.insert(0, info['receiver'])
+        self.receiver_name_entry.insert(0, info['receiver_name'])
+        self.location_entry.insert(0, info['location'])
+        self.notes_entry.insert(0, info['notes'])
+
 
 def main():
     root = tk.Tk()
