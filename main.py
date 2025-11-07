@@ -173,13 +173,21 @@ class ExpressManagementSystem:
                  bg="lightgreen", width=15).grid(row=10, column=0, columnspan=2, pady=10)
     def setup_out_tab(self):
         """设置取件标签页"""
-        tk.Label(self.tab_out, text="请输入取件码:").pack(pady=10)
+        # 创建框架来组织按钮
+        button_frame = tk.Frame(self.tab_out)
+        button_frame.pack(pady=10)
+        
+        tk.Label(self.tab_out, text="请输入取件码或扫描快递二维码:").pack(pady=10)
         
         self.pick_code_out_entry = tk.Entry(self.tab_out, width=30, font=("Arial", 14))
         self.pick_code_out_entry.pack(pady=10)
         
-        tk.Button(self.tab_out, text="取件", command=self.pick_up_express, 
-                 bg="lightcoral", width=15, height=2).pack(pady=20)
+        # 在同一行放置两个按钮
+        tk.Button(button_frame, text="取件", command=self.pick_up_express, 
+                 bg="lightcoral", width=15, height=2).pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(button_frame, text="扫描二维码", command=self.qr_read_for_pickup,
+                 bg="lightblue", width=15, height=2).pack(side=tk.LEFT, padx=5)
         
         # 结果显示
         self.result_label = tk.Label(self.tab_out, text="", font=("Arial", 12), fg="blue")
@@ -187,13 +195,23 @@ class ExpressManagementSystem:
     
     def setup_query_tab(self):
         """设置查询标签页"""
-        tk.Label(self.tab_query, text="请输入查询条件(快递ID/发件人ID/收件人ID):").pack(pady=10)
+        tk.Label(self.tab_query, text="请输入查询条件(快递ID/发件人ID/收件人ID)或扫描快递二维码:").pack(pady=10)
         
-        self.query_entry = tk.Entry(self.tab_query, width=30, font=("Arial", 12))
-        self.query_entry.pack(pady=10)
+        # 创建输入框和按钮的容器
+        input_frame = tk.Frame(self.tab_query)
+        input_frame.pack(pady=10)
         
-        tk.Button(self.tab_query, text="查询", command=self.query_express, 
-                 bg="lightblue", width=15).pack(pady=10)
+        self.query_entry = tk.Entry(input_frame, width=30, font=("Arial", 12))
+        self.query_entry.pack(side=tk.LEFT, padx=5)
+        
+        button_frame = tk.Frame(self.tab_query)
+        button_frame.pack(pady=5)
+        
+        tk.Button(button_frame, text="查询", command=self.query_express, 
+                 bg="lightblue", width=15).pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(button_frame, text="扫描二维码", command=self.qr_read_for_query,
+                 bg="lightgreen", width=15).pack(side=tk.LEFT, padx=5)
         
         # 查询结果文本框
         self.query_result_text = tk.Text(self.tab_query, width=80, height=20)
@@ -381,19 +399,78 @@ class ExpressManagementSystem:
         self.receiver_name_entry.delete(0, tk.END)
         self.location_entry.delete(0, tk.END)
         self.notes_entry.delete(0, tk.END)
-    def qr_read(self):
-        """读取并解析二维码"""
-        filepath = tk.filedialog.askopenfilename(title="选择二维码图片", 
-                                               filetypes=[("PNG图片", "*.png"), ("所有文件", "*.*")])
+    def read_qr_code(self, title="选择二维码图片"):
+        """通用二维码读取函数"""
+        filepath = tk.filedialog.askopenfilename(
+            title=title,
+            filetypes=[("PNG图片", "*.png"), ("所有文件", "*.*")]
+        )
+        if not filepath:  # 用户取消选择
+            return None
+            
         info = qrcode_load.read_express_qr_code(filepath)
-        self.express_id_entry.insert(0, info['express_id'])
-        self.pick_code_entry.insert(0, info['pick_code'])
-        self.sender_id_entry.insert(0, info['sender'])
-        self.sender_name_entry.insert(0, info['sender_name'])
-        self.receiver_id_entry.insert(0, info['receiver'])
-        self.receiver_name_entry.insert(0, info['receiver_name'])
-        self.location_entry.insert(0, info['location'])
-        self.notes_entry.insert(0, info['notes'])
+        if info is None:
+            messagebox.showerror("错误", "无法读取二维码，请确保图片清晰且包含有效的快递信息二维码。")
+            return None
+            
+        return info
+    
+    def qr_read(self):
+        """入库页面的二维码读取"""
+        info = self.read_qr_code("选择入库快递二维码")
+        if not info:
+            return
+            
+        # 清空现有输入
+        self.clear_in_fields()
+        
+        try:
+            self.express_id_entry.insert(0, info.get('express_id', ''))
+            self.pick_code_entry.insert(0, info.get('pick_code', ''))
+            self.sender_id_entry.insert(0, info.get('sender', ''))
+            self.sender_name_entry.insert(0, info.get('sender_name', ''))
+            self.receiver_id_entry.insert(0, info.get('receiver', ''))
+            self.receiver_name_entry.insert(0, info.get('receiver_name', ''))
+            self.location_entry.insert(0, info.get('location', ''))
+            self.notes_entry.insert(0, info.get('notes', ''))
+        except Exception as e:
+            messagebox.showerror("错误", f"解析二维码数据时出错：{str(e)}")
+            
+    def qr_read_for_pickup(self):
+        """取件页面的二维码读取"""
+        info = self.read_qr_code("扫描取件二维码")
+        if not info:
+            return
+            
+        try:
+            pick_code = info.get('pick_code', '')
+            if pick_code:
+                self.pick_code_out_entry.delete(0, tk.END)
+                self.pick_code_out_entry.insert(0, pick_code)
+                # 自动触发取件操作
+                self.pick_up_express()
+            else:
+                messagebox.showerror("错误", "二维码中未包含取件码信息")
+        except Exception as e:
+            messagebox.showerror("错误", f"处理取件二维码时出错：{str(e)}")
+            
+    def qr_read_for_query(self):
+        """查询页面的二维码读取"""
+        info = self.read_qr_code("扫描查询二维码")
+        if not info:
+            return
+            
+        try:
+            express_id = info.get('express_id', '')
+            if express_id:
+                self.query_entry.delete(0, tk.END)
+                self.query_entry.insert(0, express_id)
+                # 自动触发查询操作
+                self.query_express()
+            else:
+                messagebox.showerror("错误", "二维码中未包含快递单号信息")
+        except Exception as e:
+            messagebox.showerror("错误", f"解析二维码数据时出错：{str(e)}")
 
 
 def main():
