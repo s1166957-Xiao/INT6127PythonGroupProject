@@ -1,3 +1,5 @@
 # 第三方依赖库（pip install -r requirements.txt）
-pandas>=1.0.0          # 用于数据处理（代码中导入了pd）
-qrcode>=7.0.0          # 用于生成二维码
+pandas>=1.0.0          # 数据处理
+qrcode>=7.0.0          # 二维码生成（若qrcode_load为自定义模块可删除）
+opencv-python>=4.5.0   # 图像处理（对应cv2，用于图像读取/处理）
+pyzbar>=0.1.9          # 二维码识别（对应pyzbar.pyzbar，用于解码二维码）
