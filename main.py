@@ -11,6 +11,14 @@ from database import DatabaseManager
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from totp_manager import TOTPManager
+
+# 配置matplotlib支持中文显示
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
+
+# 全局变量：用户角色
+USER_ROLE = "user"  # 可能的值: "user" 或 "admin"
 
 class Person:
     """人物类"""
@@ -41,11 +49,14 @@ class QRCodeDialog:
     """二维码显示对话框"""
     def __init__(self, parent, qr_path, express_info):
         self.dialog = tk.Toplevel(parent)
+        self.parent = parent
+        self.qr_path = qr_path
+        self.express_info = express_info
         self.dialog.title("快递二维码")
         
         # 设置对话框大小和位置
         dialog_width = 400
-        dialog_height = 500
+        dialog_height = 800
         screen_width = parent.winfo_screenwidth()
         screen_height = parent.winfo_screenheight()
         x = (screen_width - dialog_width) // 2
@@ -57,7 +68,7 @@ class QRCodeDialog:
         info_frame.pack(padx=10, pady=5, fill="x")
         
         # 显示快递信息
-        info_text = (
+        self.info_text = (
             f"快递单号: {express_info['express_id']}\n"
             f"取件码: {express_info['pick_code']}\n"
             f"发件人: {express_info['sender_name']}({express_info['sender']})\n"
@@ -65,18 +76,31 @@ class QRCodeDialog:
             f"位置: {express_info['location']}\n"
             f"备注: {express_info['notes']}"
         )
-        tk.Label(info_frame, text=info_text, justify=tk.LEFT).pack(padx=5, pady=5)
+        tk.Label(info_frame, text=self.info_text, justify=tk.LEFT).pack(padx=5, pady=5)
+        
+        # 复制信息按钮
+        ttk.Button(info_frame, text="复制信息", 
+                  command=self.copy_info).pack(pady=5)
         
         # 显示二维码图像
         try:
             # 打开并调整二维码图片大小
-            img = Image.open(qr_path)
-            img = img.resize((300, 300), Image.Resampling.LANCZOS)
-            self.photo = ImageTk.PhotoImage(img)
+            self.img = Image.open(qr_path)
+            self.img = self.img.resize((300, 300), Image.Resampling.LANCZOS)
+            self.photo = ImageTk.PhotoImage(self.img)
             
             # 创建图像标签
             qr_label = tk.Label(self.dialog, image=self.photo)
             qr_label.pack(pady=10)
+            
+            # 图片操作按钮框架
+            btn_frame = ttk.Frame(self.dialog)
+            btn_frame.pack(pady=5)
+            
+            ttk.Button(btn_frame, text="另存为...", 
+command=self.save_as).pack(side=tk.LEFT, padx=5)
+            ttk.Button(btn_frame, text="复制到剪贴板", 
+                      command=self.copy_to_clipboard).pack(side=tk.LEFT, padx=5)
             
             # 显示保存位置
             tk.Label(self.dialog, text=f"二维码已保存至:\n{qr_path}", 
@@ -87,18 +111,53 @@ class QRCodeDialog:
                     fg="red").pack(pady=10)
         
         # 关闭按钮
-        tk.Button(self.dialog, text="关闭", command=self.dialog.destroy).pack(pady=10)
+        ttk.Button(self.dialog, text="关闭", 
+                  command=self.dialog.destroy).pack(pady=10)
         
-        # 设置模态对话框
+# 设置模态对话框
         self.dialog.transient(parent)
         self.dialog.grab_set()
         parent.wait_window(self.dialog)
+    
+    def save_as(self):
+        """另存为对话框"""
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[("PNG图片", "*.png")],
+            initialfile=f"快递_{self.express_info['express_id']}.png"
+)
+        if file_path:
+            try:
+                self.img.save(file_path)
+                messagebox.showinfo("成功", f"二维码已保存至:\n{file_path}")
+            except Exception as e:
+                messagebox.showerror("错误", f"保存失败: {str(e)}")
+    
+    def copy_to_clipboard(self):
+        """复制图片到剪贴板"""
+        try:
+            self.parent.clipboard_clear()
+            self.parent.clipboard_append(self.qr_path)  # 实际上是复制文件路径
+            messagebox.showinfo("成功", "二维码图片已复制到剪贴板")
+        except Exception as e:
+            messagebox.showerror("错误", f"复制失败: {str(e)}")
+    
+    def copy_info(self):
+        """复制快递信息到剪贴板"""
+        try:
+            self.parent.clipboard_clear()
+            self.parent.clipboard_append(self.info_text)
+            messagebox.showinfo("成功", "快递信息已复制到剪贴板")
+        except Exception as e:
+            messagebox.showerror("错误", f"复制失败: {str(e)}")
 
 class ExpressManagementSystem:
     """快递管理系统"""
     def __init__(self, root):
         self.root = root
-        self.root.title("快递管理系统")
+        self.user_role = USER_ROLE  # 保存当前用户角色
+        title_suffix = "（管理员模式）" if self.user_role == "admin" else "（普通用户模式）"
+        self.root.title(f"快递管理系统 {title_suffix}")
         
         # 设置最小窗口大小
         self.root.minsize(800, 600)
@@ -110,15 +169,24 @@ class ExpressManagementSystem:
         # 初始化数据库管理器
         self.db = DatabaseManager()
         
+        # 初始化TOTP管理器（用于重置安全密钥）
+        if self.user_role == "admin":
+            self.totp_manager = TOTPManager()
+        
         # 数据存储（内存缓存）
         self.people_dict = {}  # {person_id: Person对象}
         self.express_dict = {}  # {express_id: Express对象}
         self.pick_code_dict = {}  # {pick_code: express_id}
         
+        # 加载数据
+        self.load_data()
+        
         # 创建界面
         self.create_widgets()
-        self.load_data()
-        self.update_express_list()
+        
+        # 更新显示
+        if self.user_role == "admin":  # 只有管理员才能看到快递列表
+            self.update_express_list()
         
         # 设置窗口大小和位置（居中显示）
         window_width = 1000
@@ -130,7 +198,8 @@ class ExpressManagementSystem:
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
         
         # 设置定时刷新（每60秒更新一次数据）
-        self.root.after(60000, self.refresh_data)
+        # self.root.after(60000, self.refresh_data)
+        self.after_id = self.root.after(60000, self.refresh_data)
     
     # def init_test_data(self):
     #     """初始化测试数据"""
@@ -175,9 +244,9 @@ class ExpressManagementSystem:
         self.express_dict.clear()
         self.pick_code_dict.clear()
         for express_data in expresses:
-            (express_id, pick_code, sender_id, receiver_id, location, 
+            (express_id, pick_code, sender_id, receiver_id, area_id, location, 
              notes, status, create_time, update_time, sender_name, 
-             receiver_name) = express_data
+             receiver_name, area_name) = express_data
             
             # 创建Express对象
             express = Express(
@@ -216,42 +285,166 @@ class ExpressManagementSystem:
     
     def create_widgets(self):
         """创建界面组件"""
-        # 创建标签页
-        tab_control = ttk.Notebook(self.root)
-        tab_control.grid(row=0, column=0, sticky="nsew")
+        # 创建菜单栏
+        self.create_menu_bar()
         
+        # 创建标签页
+        self.tab_control = ttk.Notebook(self.root)
+        self.tab_control.grid(row=0, column=0, sticky="nsew")
+        
+        # 创建所有标签页，但只为管理员创建特殊页面
+        if self.user_role == "admin":
+            self.create_all_tabs()
+            
+            # 设置各标签页的内容
+            self.setup_in_tab()
+            self.setup_out_tab()
+            self.setup_query_tab()
+            self.setup_list_tab()
+            self.setup_users_tab()
+            self.setup_stats_tab()
+            
+            # 为管理员添加额外的菜单
+            # self.create_admin_menu() # This method does not exist and seems redundant
+        else:
+            # 普通用户只创建必要的标签页
+            self.tab_out = ttk.Frame(self.tab_control)
+            self.tab_control.add(self.tab_out, text="快递取件")
+            self.tab_out.grid_columnconfigure(0, weight=1)
+            
+            self.tab_query = ttk.Frame(self.tab_control)
+            self.tab_control.add(self.tab_query, text="快递查询")
+            self.tab_query.grid_columnconfigure(0, weight=1)
+            
+            # 设置普通用户可用的标签页
+            self.setup_out_tab()
+            self.setup_query_tab()
+            
+            # 显示提示信息
+            messagebox.showinfo("普通用户模式", 
+                "您已进入普通用户模式。\n"
+                "可以使用快递取件和查询功能。")
+    
+    def create_all_tabs(self):
+        """创建所有标签页"""
         # 入库标签页
-        self.tab_in = ttk.Frame(tab_control)
-        tab_control.add(self.tab_in, text="快递入库")
+        self.tab_in = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.tab_in, text="快递入库")
         self.tab_in.grid_columnconfigure(0, weight=1)
         
         # 取件标签页
-        self.tab_out = ttk.Frame(tab_control)
-        tab_control.add(self.tab_out, text="快递取件")
+        self.tab_out = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.tab_out, text="快递取件")
         self.tab_out.grid_columnconfigure(0, weight=1)
         
         # 查询标签页
-        self.tab_query = ttk.Frame(tab_control)
-        tab_control.add(self.tab_query, text="快递查询")
+        self.tab_query = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.tab_query, text="快递查询")
         self.tab_query.grid_columnconfigure(0, weight=1)
         
         # 列表标签页
-        self.tab_list = ttk.Frame(tab_control)
-        tab_control.add(self.tab_list, text="快递列表")
+        self.tab_list = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.tab_list, text="快递列表")
         self.tab_list.grid_columnconfigure(0, weight=1)
         self.tab_list.grid_rowconfigure(0, weight=1)
         
         # 用户管理标签页
-        self.tab_users = ttk.Frame(tab_control)
-        tab_control.add(self.tab_users, text="用户管理")
+        self.tab_users = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.tab_users, text="用户管理")
         self.tab_users.grid_columnconfigure(0, weight=1)
         self.tab_users.grid_rowconfigure(0, weight=1)
         
         # 数据统计标签页
-        self.tab_stats = ttk.Frame(tab_control)
-        tab_control.add(self.tab_stats, text="数据统计")
+        self.tab_stats = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.tab_stats, text="数据统计")
         self.tab_stats.grid_columnconfigure(0, weight=1)
         self.tab_stats.grid_rowconfigure(1, weight=1)
+    
+    def apply_user_restrictions(self):
+        """应用普通用户的权限限制"""
+        # 删除管理员专用标签页和相关变量
+        admin_tabs = [self.tab_in, self.tab_list, self.tab_users, self.tab_stats]
+        for tab in admin_tabs:
+            self.tab_control.forget(tab)
+            # 确保删除所有对标签页的引用
+            if hasattr(self, 'express_tree'):
+                delattr(self, 'express_tree')
+            if hasattr(self, 'users_tree'):
+                delattr(self, 'users_tree')
+            if hasattr(self, 'stat_labels'):
+                delattr(self, 'stat_labels')
+            if hasattr(self, 'figure'):
+                delattr(self, 'figure')
+            if hasattr(self, 'canvas'):
+                delattr(self, 'canvas')
+        
+        # 选中取件标签页作为默认显示
+        self.tab_control.select(self.tab_out)
+        
+        # 禁用不必要的更新
+        try:
+            self.root.after_cancel(self.after_id)
+        except AttributeError:
+            pass
+        
+        # 显示提示信息
+        messagebox.showinfo("普通用户模式", 
+            "您已进入普通用户模式。\n"
+            "可以使用快递取件和查询功能。")
+    
+    def create_menu_bar(self):
+        """创建菜单栏"""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # 创建系统菜单
+        system_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="系统", menu=system_menu)
+        
+        # 添加退出登录选项
+        system_menu.add_command(label="退出登录", command=self.logout)
+        system_menu.add_separator()
+        system_menu.add_command(label="退出程序", command=self.exit_program)
+        
+        if self.user_role == "admin":
+            # 创建仓库菜单
+            warehouse_menu = tk.Menu(menubar, tearoff=0)
+            menubar.add_cascade(label="仓库", menu=warehouse_menu)
+            
+            # 添加仓库区域管理选项
+            from area_dialog import AreaDialog
+            warehouse_menu.add_command(label="区域管理", 
+                                     command=lambda: AreaDialog(self.root, self.db))
+            
+            # 创建安全菜单（仅管理员可见）
+            security_menu = tk.Menu(menubar, tearoff=0)
+            menubar.add_cascade(label="安全", menu=security_menu)
+            
+            # 添加重置TOTP密钥选项
+            security_menu.add_command(label="重置安全密钥", 
+                                    command=self.reset_security_key)
+    
+    def logout(self):
+        """退出登录"""
+        if messagebox.askyesno("确认", "确定要退出登录吗？"):
+            self.root.destroy()  # 关闭当前窗口
+    
+    def exit_program(self):
+        """退出程序"""
+        if messagebox.askyesno("确认", "确定要退出程序吗？"):
+            self._exit_program = True  # 标记是通过退出程序关闭的
+            self.root.quit()
+    
+    def reset_security_key(self):
+        """重置TOTP安全密钥"""
+        if messagebox.askyesno("确认", 
+            "确定要重置安全密钥吗？\n重置后需要重新配置您的身份验证器。"):
+            # 生成新的密钥
+            self.totp_manager.generate_new_secret()
+            
+            # 显示配置对话框
+            from dialogs import AdminLoginDialog
+            AdminLoginDialog(self.root, self.totp_manager)
         
         # 设置各标签页的内容
         self.setup_in_tab()
@@ -297,15 +490,21 @@ class ExpressManagementSystem:
         self.receiver_name_entry = tk.Entry(info_frame, width=30)
         self.receiver_name_entry.grid(row=5, column=1, padx=5, pady=5)
         
+        # 仓库区域
+        tk.Label(info_frame, text="仓库区域:").grid(row=6, column=0, padx=5, pady=5, sticky="e")
+        self.area_combobox = ttk.Combobox(info_frame, width=27, state="readonly")
+        self.area_combobox.grid(row=6, column=1, padx=5, pady=5)
+        self.area_combobox.bind("<<ComboboxSelected>>", self.update_location_list)
+        
         # 摆放位置
-        tk.Label(info_frame, text="摆放位置:").grid(row=6, column=0, padx=5, pady=5, sticky="e")
-        self.location_entry = tk.Entry(info_frame, width=30)
-        self.location_entry.grid(row=6, column=1, padx=5, pady=5)
+        tk.Label(info_frame, text="摆放位置:").grid(row=7, column=0, padx=5, pady=5, sticky="e")
+        self.location_combobox = ttk.Combobox(info_frame, width=27)
+        self.location_combobox.grid(row=7, column=1, padx=5, pady=5)
         
         # 备注
-        tk.Label(info_frame, text="备注:").grid(row=7, column=0, padx=5, pady=5, sticky="e")
+        tk.Label(info_frame, text="备注:").grid(row=8, column=0, padx=5, pady=5, sticky="e")
         self.notes_entry = tk.Entry(info_frame, width=30)
-        self.notes_entry.grid(row=7, column=1, padx=5, pady=5)
+        self.notes_entry.grid(row=8, column=1, padx=5, pady=5)
         
         # 按钮区域
         button_frame = ttk.Frame(self.tab_in)
@@ -322,6 +521,9 @@ class ExpressManagementSystem:
         # QR码解析按钮
         tk.Button(button_frame, text="QR码解析", command=self.qr_read, 
                  bg="lightblue", width=15).pack(side=tk.LEFT, padx=5)
+        
+        # 加载仓库区域列表
+        self.update_area_list()
     def setup_out_tab(self):
         """设置取件标签页"""
         # 创建框架来组织按钮
@@ -332,7 +534,6 @@ class ExpressManagementSystem:
         
         self.pick_code_out_entry = tk.Entry(self.tab_out, width=30, font=("Arial", 14))
         self.pick_code_out_entry.pack(pady=10)
-        
         # 在同一行放置两个按钮
         tk.Button(button_frame, text="取件", command=self.pick_up_express, 
                  bg="lightcoral", width=15, height=2).pack(side=tk.LEFT, padx=5)
@@ -430,13 +631,28 @@ class ExpressManagementSystem:
         sender_name = self.sender_name_entry.get().strip()
         receiver_id = self.receiver_id_entry.get().strip()
         receiver_name = self.receiver_name_entry.get().strip()
-        location = self.location_entry.get().strip()
+        area_str = self.area_combobox.get()
+        location = self.location_combobox.get().strip()
         notes = self.notes_entry.get().strip()
         status = "在库"
         
         # 验证必填字段
-        if not all([sender_id, sender_name, receiver_id, receiver_name, location]):
+        if not all([sender_id, sender_name, receiver_id, receiver_name, area_str, location]):
             messagebox.showerror("错误", "请填写所有必填字段！")
+            return
+        
+        # 从选择的文本中提取区域ID
+        area_id = area_str.split("(")[1].rstrip(")")
+        
+        # 检查区域容量
+        area_info = self.db.get_area_capacity_info(area_id)
+        if area_info:
+            _, _, capacity, used_capacity = area_info
+            if used_capacity >= capacity:
+                messagebox.showerror("错误", f"区域 {area_str} 已满！")
+                return
+        else:
+            messagebox.showerror("错误", f"区域 {area_str} 不存在！")
             return
         
         # 创建或更新发件人
@@ -444,31 +660,32 @@ class ExpressManagementSystem:
             # 更新现有发件人姓名（如果有变化）
             if self.people_dict[sender_id].name != sender_name:
                 self.people_dict[sender_id].name = sender_name
+                self.db.update_user(sender_id, sender_name)
         else:
             # 创建新发件人
             self.people_dict[sender_id] = Person(sender_id, sender_name)
-            self.df_user.loc[len(self.df_user)] = [sender_id, sender_name]
-            self.df_user.to_excel("user.xlsx", index=False, sheet_name='人物数据')
+            self.db.add_user(sender_id, sender_name)
         
         # 创建或更新收件人
         if receiver_id in self.people_dict:
             # 更新现有收件人姓名（如果有变化）
             if self.people_dict[receiver_id].name != receiver_name:
                 self.people_dict[receiver_id].name = receiver_name
+                self.db.update_user(receiver_id, receiver_name)
         else:
             # 创建新收件人
             self.people_dict[receiver_id] = Person(receiver_id, receiver_name)
-            self.df_user.loc[len(self.df_user)] = [receiver_id, receiver_name]
-            self.df_user.to_excel("user.xlsx", index=False, sheet_name='人物数据')
+            self.db.add_user(receiver_id, receiver_name)
         
         # 创建快递对象
         sender = self.people_dict[sender_id]
         receiver = self.people_dict[receiver_id]
-        express = Express(express_id, pick_code, sender, receiver, location, notes, status)
+        full_location = f"{area_str} {location}"
+        express = Express(express_id, pick_code, sender, receiver, full_location, notes, status)
         
         # 添加到数据库
-        if not self.db.add_express(express_id, pick_code, sender_id, receiver_id, 
-                                 location, notes, status):
+        if not self.db.add_express(express_id, pick_code, sender_id, receiver_id, area_id,
+                              full_location, notes, status):
             messagebox.showerror("错误", "保存快递信息失败！")
             return
             
@@ -488,7 +705,7 @@ class ExpressManagementSystem:
             'sender_name': sender_name,
             'receiver': receiver_id,
             'receiver_name': receiver_name,
-            'location': location,
+            'location': full_location,
             'notes': notes
         }
         
@@ -501,7 +718,9 @@ class ExpressManagementSystem:
             QRCodeDialog(self.root, qr_path, express_info)
         else:
             messagebox.showwarning("警告", f"快递入库成功，但二维码生成失败！\n快递单号：{express_id}")
-    
+        
+        # 更新区域和位置列表
+        self.update_area_list()
     def pick_up_express(self):
         """快递取件"""
         pick_code = self.pick_code_out_entry.get().strip()
@@ -540,8 +759,7 @@ class ExpressManagementSystem:
             if not self.db.update_express_status(express_id, "已取件"):
                 messagebox.showerror("错误", "更新快递状态失败！")
                 return
-                
-            # 更新内存状态
+# 更新内存状态
             express.status = "已取件"
             
             # 显示成功信息
@@ -584,6 +802,10 @@ class ExpressManagementSystem:
     
     def update_express_list(self):
         """更新快递列表显示"""
+        # 只有管理员才能更新快递列表
+        if self.user_role != "admin" or not hasattr(self, 'express_tree'):
+            return
+            
         # 清空现有列表
         for item in self.express_tree.get_children():
             self.express_tree.delete(item)
@@ -608,8 +830,94 @@ class ExpressManagementSystem:
         self.sender_name_entry.delete(0, tk.END)
         self.receiver_id_entry.delete(0, tk.END)
         self.receiver_name_entry.delete(0, tk.END)
-        self.location_entry.delete(0, tk.END)
+        self.area_combobox.set("")
+        self.location_combobox.set("")
         self.notes_entry.delete(0, tk.END)
+    
+    def update_area_list(self):
+        """更新仓库区域列表"""
+        try:
+            areas = self.db.get_all_areas()
+            self.area_combobox['values'] = [f"{area[1]} ({area[0]})" for area in areas]
+            
+            # 更新图表数据
+            self.update_storage_chart(areas)
+            
+        except Exception as e:
+            messagebox.showerror("错误", f"加载仓库区域失败: {str(e)}")
+
+    def update_location_list(self, event=None):
+        """根据选择的区域更新位置列表"""
+        try:
+            selected_area_str = self.area_combobox.get()
+            if not selected_area_str:
+                return
+            
+            area_id = selected_area_str.split('(')[-1].replace(')', '')
+            
+            # 从数据库获取区域的详细信息
+            areas = self.db.get_all_areas()
+            area_info = next((area for area in areas if area[0] == area_id), None)
+            
+            if not area_info:
+                self.location_combobox['values'] = []
+                return
+            
+            capacity = area_info[2]
+            used_locations = area_info[5].split(',') if area_info[5] else []
+            
+            # 生成所有可能的位置
+            all_locations = [f"货位 {i+1}" for i in range(capacity)]
+            
+            # 筛选出可用的位置
+            available_locations = [loc for loc in all_locations if loc not in used_locations]
+            
+            self.location_combobox['values'] = available_locations
+            if available_locations:
+                self.location_combobox.set(available_locations[0])
+            else:
+                self.location_combobox.set("该区域已满")
+                
+        except Exception as e:
+            messagebox.showerror("错误", f"加载位置列表失败: {str(e)}")
+
+    def update_storage_chart(self, areas=None):
+        """更新仓储图表"""
+        if areas is None:
+            areas = self.db.get_all_areas()
+        
+        if not hasattr(self, 'storage_ax'):
+            return # 如果图表还没创建，就先不更新
+            
+        self.storage_ax.clear()
+        
+        area_names = [area[1] for area in areas]
+        capacities = [area[2] for area in areas]
+        current_items = [area[4] for area in areas]
+        
+        colors = ['skyblue', 'lightgreen', 'lightcoral', 'gold']
+        
+        # 绘制条形图
+        bars = self.storage_ax.bar(area_names, capacities, color=[c + 'a0' for c in colors], label='总容量')
+        used_bars = self.storage_ax.bar(area_names, current_items, color=colors, label='已使用')
+        
+        # 添加标签
+        self.storage_ax.set_ylabel('数量')
+        self.storage_ax.set_title('各区域仓储情况')
+        self.storage_ax.legend()
+        
+        # 在条形图上显示数值
+        for bar, used in zip(bars, current_items):
+            height = bar.get_height()
+            self.storage_ax.text(bar.get_x() + bar.get_width() / 2.0, height, 
+                               f'{used}/{height}', ha='center', va='bottom')
+        
+        self.storage_canvas.draw()
+    
+    def show_area_dialog(self):
+        """显示仓库区域管理对话框"""
+        from area_dialog import AreaDialog
+        AreaDialog(self.root, self.db)
         
     def setup_users_tab(self):
         """设置用户管理标签页"""
@@ -860,6 +1168,9 @@ class ExpressManagementSystem:
     def update_stats(self):
         """更新统计数据"""
         try:
+            # 导入numpy
+            import numpy as np
+
             # 获取统计数据
             stats = self.db.get_express_stats()
             
@@ -868,35 +1179,71 @@ class ExpressManagementSystem:
             self.stat_labels['today_in'].config(text=str(stats['today_in']))
             self.stat_labels['today_out'].config(text=str(stats['today_out']))
             
-            # 清除旧图表
-            self.figure.clear()
-            
-            # 创建新的柱状图
-            if stats['location_distribution']:
-                ax = self.figure.add_subplot(111)
+            # 创建两个子图
+            if stats['area_distribution']:
+                # 清除现有图表
+                self.figure.clf()
                 
-                locations = [loc for loc, _ in stats['location_distribution']]
-                counts = [count for _, count in stats['location_distribution']]
+                # 创建网格布局
+                gs = self.figure.add_gridspec(2, 1, height_ratios=[1, 1], hspace=0.3)
                 
-                # 创建柱状图
-                bars = ax.bar(locations, counts)
+                # 区域容量使用情况
+                ax1 = self.figure.add_subplot(gs[0])
                 
-                # 设置标题和标签
-                ax.set_title("Location Distribution of In-Storage Packages")
-                ax.set_xlabel("Location")
-                ax.set_ylabel("Number of Packages")
+                area_names = []
+                capacities = []
+                used_capacities = []
                 
-                # 旋转x轴标签，防止重叠
-                plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+                for area_name, capacity, used in stats['area_distribution']:
+                    area_names.append(area_name)
+                    capacities.append(capacity)
+                    used_capacities.append(used if used else 0)
                 
-                # 在柱子顶部显示数值
-                for bar in bars:
-                    height = bar.get_height()
-                    ax.text(bar.get_x() + bar.get_width()/2., height,
-                           f'{int(height)}',
-                           ha='center', va='bottom')
+                x = np.arange(len(area_names))
+                width = 0.35
                 
-                # 调整布局，确保标签不被截断
+                ax1.bar(x - width/2, capacities, width, label='总容量', color='lightblue')
+                ax1.bar(x + width/2, used_capacities, width, label='已使用', color='lightcoral')
+                
+                ax1.set_ylabel('快递数量')
+                ax1.set_title('各区域容量使用情况')
+                ax1.set_xticks(x)
+                ax1.set_xticklabels(area_names, rotation=45, ha='right')
+                ax1.legend()
+                
+                # 添加数值标签
+                for i, (c, u) in enumerate(zip(capacities, used_capacities)):
+                    ax1.text(i - width/2, c, str(c), ha='center', va='bottom')
+                    ax1.text(i + width/2, u, str(u), ha='center', va='bottom')
+                
+                # 区域位置分布
+                if stats['location_distribution']:
+                    ax2 = self.figure.add_subplot(gs[1])
+                    
+                    # 按区域分组数据
+                    area_data = {}
+                    for loc, count, area_name in stats['location_distribution']:
+                        if area_name not in area_data:
+                            area_data[area_name] = {'locations': [], 'counts': []}
+                        area_data[area_name]['locations'].append(loc.split(" ")[-1])  # 只显示位置号
+                        area_data[area_name]['counts'].append(count)
+                    
+                    # 为每个区域创建柱状图
+                    colors = plt.cm.Pastel1(np.linspace(0, 1, len(area_data)))
+                    bottom = np.zeros(len(next(iter(area_data.values()))['locations']))
+                    
+                    for (area_name, data), color in zip(area_data.items(), colors):
+                        ax2.bar(data['locations'], data['counts'], 
+                               label=area_name, bottom=bottom, color=color)
+                        bottom += np.array(data['counts'])
+                    
+                    ax2.set_title('各区域位置分布')
+                    ax2.set_xlabel('位置编号')
+                    ax2.set_ylabel('快递数量')
+                    ax2.legend()
+                    plt.setp(ax2.get_xticklabels(), rotation=45, ha='right')
+                
+                # 调整布局
                 self.figure.tight_layout()
             
             # 刷新画布
@@ -1008,9 +1355,47 @@ class ExpressManagementSystem:
 
 
 def main():
-    root = tk.Tk()
-    app = ExpressManagementSystem(root)
-    root.mainloop()
+    while True:
+        root = tk.Tk()
+        
+        # 创建TOTP管理器
+        totp_manager = TOTPManager()
+        
+        # 显示角色选择对话框
+        from dialogs import RoleSelectionDialog, AdminLoginDialog
+        role_dialog = RoleSelectionDialog(root)
+        
+        # 声明全局变量
+        global USER_ROLE
+        
+        if role_dialog.result == "admin":
+            # 显示管理员登录对话框
+            login_dialog = AdminLoginDialog(root, totp_manager)
+            if not login_dialog.result:
+                # 登录失败，返回角色选择
+                root.destroy()
+                continue
+            
+            USER_ROLE = "admin"
+        elif role_dialog.result == "user":
+            USER_ROLE = "user"
+        elif role_dialog.result == "exit":
+            # 用户选择退出程序
+            root.destroy()
+            break
+        else:
+            # 用户取消选择，返回角色选择
+            root.destroy()
+            continue
+        # 创建主程序实例
+        app = ExpressManagementSystem(root)
+        root.mainloop()
+        
+        # 如果程序是通过退出登录关闭的，继续循环
+        # 如果是通过退出程序关闭的，跳出循环
+        if not hasattr(app, '_exit_program'):
+            continue
+        break
 
 if __name__ == "__main__":
     main()
