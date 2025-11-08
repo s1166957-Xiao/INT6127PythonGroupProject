@@ -5,3 +5,4 @@ opencv-python>=4.5.0   # 图像处理（对应cv2，用于图像读取/处理）
 pyzbar>=0.1.9          # 二维码识别（对应pyzbar.pyzbar，用于解码二维码）
 Pillow>=9.0.0
 matplotlib>=3.7.1      # 数据可视化图表
+pyotp>=2.9.0          # TOTP双因素认证实现
