@@ -38,20 +38,32 @@ class DatabaseManager:
                 )
             ''')
             
-            # 创建快递表
+            # 创建仓库区域表
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS warehouse_areas (
+                    area_id TEXT PRIMARY KEY,
+                    area_name TEXT NOT NULL,
+                    capacity INTEGER NOT NULL,
+                    description TEXT
+                )
+            ''')
+            
+            # 创建快递表（添加区域外键）
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS express (
                     express_id TEXT PRIMARY KEY,
                     pick_code TEXT UNIQUE NOT NULL,
                     sender_id TEXT NOT NULL,
                     receiver_id TEXT NOT NULL,
+                    area_id TEXT NOT NULL,
                     location TEXT NOT NULL,
                     notes TEXT,
                     status TEXT NOT NULL,
                     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (sender_id) REFERENCES users (id),
-                    FOREIGN KEY (receiver_id) REFERENCES users (id)
+                    FOREIGN KEY (receiver_id) REFERENCES users (id),
+                    FOREIGN KEY (area_id) REFERENCES warehouse_areas (area_id)
                 )
             ''')
             
@@ -84,18 +96,34 @@ class DatabaseManager:
                         (str(row[0]), str(row[1]))
                     )
             
+            # 创建默认仓库区域
+            self.cursor.execute("""
+                INSERT INTO warehouse_areas (area_id, area_name, capacity, description)
+                VALUES ('A', 'A区', 100, '默认仓储区域A'),
+                       ('B', 'B区', 100, '默认仓储区域B'),
+                       ('C', 'C区', 100, '默认仓储区域C')
+            """)
+            
             # 导入快递数据
             if os.path.exists('express.xlsx'):
                 df_express = pd.read_excel('express.xlsx', engine='openpyxl')
                 for _, row in df_express.iterrows():
+                    # 解析原始位置信息中的区域
+                    location = str(row[4])
+                    area_id = 'A'  # 默认使用A区
+                    if location.startswith('B'):
+                        area_id = 'B'
+                    elif location.startswith('C'):
+                        area_id = 'C'
+                    
                     self.cursor.execute('''
                         INSERT INTO express (
                             express_id, pick_code, sender_id, receiver_id,
-                            location, notes, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                            area_id, location, notes, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         str(row[0]), str(row[1]), str(row[2]), str(row[3]),
-                        str(row[4]), str(row[5]), str(row[6])
+                        area_id, location, str(row[5]), str(row[6])
                     ))
             
             self.conn.commit()
@@ -161,29 +189,116 @@ class DatabaseManager:
             (user_id,)
         )
     
+    # 仓库区域相关操作
+    def get_all_areas(self):
+        """获取所有仓库区域"""
+        return self.execute_query("""
+            SELECT 
+                a.area_id,
+                a.area_name,
+                a.capacity,
+                a.description,
+                COUNT(CASE WHEN e.status = '在库' THEN 1 END) as current_items,
+                GROUP_CONCAT(DISTINCT e.location) as locations
+            FROM warehouse_areas a
+            LEFT JOIN express e ON a.area_id = e.area_id AND e.status = '在库'
+            GROUP BY a.area_id
+            ORDER BY a.area_id
+        """)
+    
+    def add_area(self, area_id, area_name, capacity, description=""):
+        """添加新仓库区域"""
+        return self.execute_update(
+            """
+            INSERT INTO warehouse_areas (
+                area_id, area_name, capacity, description
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (area_id, area_name, capacity, description)
+        )
+    
+    def update_area(self, area_id, area_name, capacity, description=""):
+        """更新仓库区域信息"""
+        return self.execute_update(
+            """
+            UPDATE warehouse_areas 
+            SET area_name = ?, 
+                capacity = ?, 
+                description = ?
+            WHERE area_id = ?
+            """,
+            (area_name, capacity, description, area_id)
+        )
+    
+    def delete_area(self, area_id):
+        """删除仓库区域"""
+        try:
+            self.connect()
+            # 检查区域是否有快递
+            self.cursor.execute(
+                "SELECT COUNT(*) FROM express WHERE area_id = ?",
+                (area_id,)
+            )
+            if self.cursor.fetchone()[0] > 0:
+                return False, "区域中仍有快递，无法删除"
+            
+            # 删除区域
+            self.cursor.execute(
+                "DELETE FROM warehouse_areas WHERE area_id = ?",
+                (area_id,)
+            )
+            self.conn.commit()
+            return True, "区域删除成功"
+        except Exception as e:
+            if self.conn:
+                self.conn.rollback()
+            return False, f"删除失败: {str(e)}"
+        finally:
+            self.disconnect()
+    
+    def get_area_capacity_info(self, area_id):
+        """获取区域容量信息"""
+        results = self.execute_query(
+            """
+            SELECT 
+                w.area_id,
+                w.area_name,
+                w.capacity,
+                COUNT(CASE WHEN e.status = '在库' THEN 1 END) as used_capacity
+            FROM warehouse_areas w
+            LEFT JOIN express e ON w.area_id = e.area_id AND e.status = '在库'
+            WHERE w.area_id = ?
+            GROUP BY w.area_id
+            """,
+            (area_id,)
+        )
+        return results[0] if results else None
+    
     # 快递相关操作
     def get_all_express(self):
         """获取所有快递"""
         return self.execute_query("""
             SELECT e.*, 
                    s.name as sender_name, 
-                   r.name as receiver_name
+                   r.name as receiver_name,
+                   w.area_name
             FROM express e
             JOIN users s ON e.sender_id = s.id
             JOIN users r ON e.receiver_id = r.id
+            JOIN warehouse_areas w ON e.area_id = w.area_id
             ORDER BY e.create_time DESC
         """)
     
     def add_express(self, express_id, pick_code, sender_id, receiver_id, 
-                   location, notes, status="在库"):
+                   area_id, location, notes, status="在库"):
         """添加新快递"""
         return self.execute_update("""
             INSERT INTO express (
                 express_id, pick_code, sender_id, receiver_id,
-                location, notes, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                area_id, location, notes, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (express_id, pick_code, sender_id, receiver_id, 
-              location, notes, status))
+              area_id, location, notes, status))
     
     def update_express_status(self, express_id, status):
         """更新快递状态"""
@@ -198,10 +313,12 @@ class DatabaseManager:
         results = self.execute_query("""
             SELECT e.*, 
                    s.name as sender_name, 
-                   r.name as receiver_name
+                   r.name as receiver_name,
+                   w.area_name
             FROM express e
             JOIN users s ON e.sender_id = s.id
             JOIN users r ON e.receiver_id = r.id
+            JOIN warehouse_areas w ON e.area_id = w.area_id
             WHERE e.pick_code = ?
         """, (pick_code,))
         return results[0] if results else None
@@ -212,16 +329,19 @@ class DatabaseManager:
         return self.execute_query("""
             SELECT e.*, 
                    s.name as sender_name, 
-                   r.name as receiver_name
+                   r.name as receiver_name,
+                   w.area_name
             FROM express e
             JOIN users s ON e.sender_id = s.id
             JOIN users r ON e.receiver_id = r.id
+            JOIN warehouse_areas w ON e.area_id = w.area_id
             WHERE e.express_id LIKE ?
                OR e.sender_id LIKE ?
                OR e.receiver_id LIKE ?
                OR s.name LIKE ?
                OR r.name LIKE ?
-        """, (query, query, query, query, query))
+               OR e.location LIKE ?
+        """, (query, query, query, query, query, query))
     
     # 统计相关操作
     def get_express_stats(self):
@@ -249,13 +369,29 @@ class DatabaseManager:
         """)
         stats['today_out'] = result[0][0] if result else 0
         
+        # 区域分布情况
+        result = self.execute_query("""
+            SELECT 
+                w.area_name,
+                w.capacity,
+                COUNT(CASE WHEN e.status = '在库' THEN 1 END) as used_capacity
+            FROM warehouse_areas w
+            LEFT JOIN express e ON w.area_id = e.area_id AND e.status = '在库'
+            GROUP BY w.area_id
+            ORDER BY w.area_id
+        """)
+        stats['area_distribution'] = result if result else []
+        
         # 位置分布情况
         result = self.execute_query("""
-            SELECT location, COUNT(*) as count
-            FROM express
-            WHERE status = '在库'
-            GROUP BY location
-            ORDER BY count DESC
+            SELECT 
+                e.location, COUNT(*) as count,
+                w.area_name
+            FROM express e
+            JOIN warehouse_areas w ON e.area_id = w.area_id
+            WHERE e.status = '在库'
+            GROUP BY e.location
+            ORDER BY w.area_id, e.location
         """)
         stats['location_distribution'] = result if result else []
         
