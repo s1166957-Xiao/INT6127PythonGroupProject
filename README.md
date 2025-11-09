@@ -118,6 +118,37 @@ The Express Management System is a lightweight courier receiving and dispatching
    ```bash
    python main.py
    ```
+## Module Function Introduction
+
+- **main.py**  
+  The main entry point of the project, responsible for the main interface and core logic of the system.
+
+- **area_dialog.py**  
+  Handles area management related interfaces and logic.
+
+- **dialogs.py**  
+  Contains common dialog and popup components.
+
+- **database.py**  
+  Database operation module, encapsulating all data read and write operations.
+
+- **qrcode_create.py**  
+  Functions related to generating courier QR codes.
+
+- **qrcode_load.py**  
+  Functions for recognizing and parsing courier QR codes.
+
+- **style_manager.py**  
+  Manages interface styles and themes.
+
+- **totp_manager.py**  
+  Handles TOTP security authentication features.
+
+- **requirements.txt**  
+  Project dependency list.
+
+- **README.md**  
+  Project documentation.
 
 
 ### Deployment Verification
