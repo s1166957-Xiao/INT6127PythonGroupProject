@@ -1,9 +1,10 @@
-# 第三方依赖库（pip install -r requirements.txt）
-pandas>=1.0.0          # 数据处理
-qrcode>=7.0.0          # 二维码生成（若qrcode_load为自定义模块可删除）
-opencv-python>=4.5.0   # 图像处理（对应cv2，用于图像读取/处理）
-pyzbar>=0.1.9          # 二维码识别（对应pyzbar.pyzbar，用于解码二维码）
-Pillow>=9.0.0
-matplotlib>=3.7.1      # 数据可视化图表
-pyotp>=2.9.0          # TOTP双因素认证实现
-ttkthemes  #主题切换
+# Third-party dependencies (pip install -r requirements.txt)
+pandas>=1.0.0          # Data processing
+qrcode>=7.0.0          # QR code generation
+opencv-python>=4.5.0   # Image processing (cv2 for image reading/processing)
+pyzbar>=0.1.9          # QR code recognition (pyzbar.pyzbar for decoding)
+Pillow>=9.0.0          # Image processing
+matplotlib>=3.7.1      # Data visualization charts
+pyotp>=2.9.0           # TOTP two-factor authentication
+ttkthemes>=3.3.0       # Theme switching
+
