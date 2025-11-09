@@ -17,37 +17,34 @@ Zhang Fangzhe 11654894 @metr0man
 
 ### Background:
 
-With the rapid development of the e-commerce industry, the national express delivery volume exceeded 120 billion pieces in 2024, making "last-mile delivery" a critical link in the logistics chain. Due to issues such as irregular delivery times and scattered addresses within campuses, campus delivery stations have become the mainstream solution to address the last-mile delivery challenge. According to the "2024 China Express Terminal Service Development Report", over 60% of packages are delivered through these stations, with an average daily processing volume of 300-800 pieces, and even exceeding 1,000 pieces during peak hours at campus stations.
+With the rapid development of the e-commerce industry, the national express delivery business volume exceeded 120 billion pieces in 2024, and the "last mile" delivery has become a key link in the logistics chain. As a mainstream way to solve the "last mile" problem, campus express delivery stations handle an average of 300-800 pieces per day, and even exceed 1,000 pieces during peak seasons. Traditional management methods mostly rely on manual registration and paper or Excel ledgers, leading to problems such as low efficiency, chaotic data, and poor user experience. 
+In addition, the security and traceability of express delivery data have also attracted increasing attention. Traditional databases are prone to tampering or loss, making it difficult to meet the needs of supervision and users for data authenticity. To this end, the project introduces blockchain technology to put express delivery data on the chain, realizing the immutability of information and full-process traceability, and further improving management transparency and data security.
 
+### Solution and Approach
 
-### Plan / Solution：
+This system targets the high-frequency business scenarios of campus courier stations, proposing an integrated solution of "Intelligent Courier Management + Data On-Chain + Security Authentication":
 
-In high-volume operational environments, express delivery stations increasingly require "efficient management tools" that address three core needs:
-
-First, enabling staff to quickly complete parcel registration, inventory classification, and delivery verification; Second, providing users with clear pickup guidance; Third, efficiently integrating operational data (such as daily shipment volumes and statistics on delayed parcels). These requirements collectively form the practical application scenarios of the "Express Delivery Station Management System".
-
-Most campus parcel stations still rely on manual registration and paper-based ledgers or "Excel spreadsheets" for management, creating operational pain points that severely impact efficiency and user experience.
-
-Low efficiency: Manually entering parcel tracking numbers (13-18 digits) and recipient information takes an average of 30 seconds per parcel, often causing congestion during peak hours. Manual verification of names and phone numbers during pickup leads to user queues exceeding 5 minutes.
-
-Inventory chaos: Packages are stacked by delivery time without proper categorization (e.g., "fresh produce", "bulk items", "delayed shipments"). This causes staff to spend time locating packages and increases the risk of misdelivery or loss (industry average loss rate is approximately 1.2%). Data is missing. Daily or weekly delivery volumes or delayed packages (i.e., packages that have not been picked up for more than 3 days) cannot be automatically calculated, making it difficult to optimize operational strategies (such as adjusting staffing during pickup peaks).
-
-Poor user experience: Users cannot check the delivery status in real time and need to repeatedly consult the staff. If the information is wrong when picking up the package (such as entering the wrong phone number), disputes may occur.
-
-The system will digitize the core processes of the station through Python programming, including "package registration, inventory management, pickup verification and data statistics", so as to directly solve the above efficiency and experience problems.
-
-
+1. **Efficient Courier Management**: A graphical interface developed with Python enables digital management of the entire process, including courier storage, classification, pickup, query, and statistics, greatly improving operational efficiency.
+2. **Data Security and Traceability**: Core courier data (such as storage, pickup, user information, operation logs, etc.) is synchronized and uploaded to the blockchain, ensuring data immutability and verifiability to meet regulatory and user requirements for data security.
+3. **Security Authentication Mechanism**: The system integrates TOTP (Time-based One-Time Password) dynamic code authentication for station staff identity verification. In addition to mainstream authenticators (such as mobile apps), we have independently developed a Micropython-based TOTP hardware key, achieving physical-level security authentication. Only administrators who pass TOTP authentication can perform sensitive operations (such as resetting keys, managing users), effectively preventing unauthorized actions and ensuring system security.
+4. **User Experience Optimization**: Integrated QR code generation and recognition support scan-to-pickup and quick information entry, reducing manual operation time and improving user satisfaction.
+5. **Scalability and Maintainability**: Modular design supports functional expansion and third-party system integration, facilitating future upgrades and maintenance.
 
 ## Project Introduction
-The Express Management System is a lightweight courier receiving and dispatching management application developed with Python. It is specifically designed for small courier service points, campus courier stations, and similar scenarios. The system adopts a graphical user interface (GUI) and supports core functions such as courier warehousing, pickup, and query. It also integrates QR code generation and scanning capabilities to achieve efficient management of courier information and convenient pickup services.
 
-### Core Features
-- Courier Warehousing Management: Automatically generates waybill numbers and pickup codes
-- QR Code Integration: Supports generation and scanning of courier information QR codes
-- Courier Pickup Management: Supports pickup code verification and status updates
-- User Management: Manages sender and recipient information
-- Data Statistics: Provides visual statistics on the number of in-stock couriers and location distribution
-- Real-time Search: Supports multi-condition courier information query
+This project is an intelligent courier management system for campus courier stations, developed in Python and combined with blockchain technology to achieve secure storage and full-process traceability of courier data. The system features a user-friendly graphical interface, supporting core functions such as courier storage, pickup, query, user management, and data statistics, and integrates QR code technology to enhance operational efficiency. All key business data can be automatically synchronized to the blockchain, ensuring data security and transparency. Administrator authentication uses TOTP dynamic codes and supports Micropython hardware keys for enhanced system security.
+
+## Core Features
+
+- **Courier Storage Management**: Automatically generates tracking numbers and pickup codes, supports courier information entry and classification, and uploads storage data to the blockchain in real time.
+- **QR Code Integration**: Supports generation and recognition of courier information QR codes, enabling scan-to-pickup and quick information entry.
+- **Courier Pickup Management**: Supports pickup code verification and status updates, with pickup operations automatically recorded and synchronized to the blockchain.
+- **User Management**: Maintains sender and recipient information, supports batch import and editing, with user data securely stored and uploaded to the blockchain.
+- **Data Statistics and Visualization**: Real-time statistics of stored courier quantities and area distribution, supports chart display, and statistical results can be stored on-chain.
+- **Real-time Search and Retrieval**: Supports multi-condition courier information query to improve search efficiency.
+- **Blockchain Data Synchronization**: All core business data (storage, pickup, user, statistics, etc.) is automatically uploaded to the blockchain, ensuring data immutability and traceability.
+- **Security Authentication and Permission Management**: Integrates TOTP dynamic codes and supports Micropython hardware keys to ensure administrator operation security.
+- **Lightweight Deployment and Easy Maintenance**: Supports standalone deployment without complex server environments, with robust data persistence and backup mechanisms for daily operation and maintenance.
 
 ### Technology Stack
 - Core Language: Python 3.x
@@ -66,7 +63,7 @@ The Express Management System is a lightweight courier receiving and dispatching
 ## Deployment Guide
 
 ### Prerequisites
-
+- none
 #### System Requirements
 - Windows 7/10/11 or Linux
 - Python 3.x (3.7+ recommended)
