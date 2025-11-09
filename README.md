@@ -98,6 +98,12 @@ The Express Management System is a lightweight courier receiving and dispatching
      source venv/bin/activate
      ```
 
+   - Exit:
+     ```bash
+     deactivate
+     ```
+   
+
 3. **Install Dependent Packages**
    ```bash
    pip install -r requirements.txt
