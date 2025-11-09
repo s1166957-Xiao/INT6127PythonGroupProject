@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from ttkthemes import ThemedTk
 import re
 from datetime import datetime
 import random
@@ -12,13 +13,19 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from totp_manager import TOTPManager
+from style_manager import tr, CURRENT_LANG
 
 # 配置matplotlib支持中文显示
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
+
+
+CURRENT_LANG = "zh"  # 本来想实现根据系统语言自动切换，但是发现ttk不支持，所以先保留中文
 # 全局变量：用户角色
 USER_ROLE = "user"  # 可能的值: "user" 或 "admin"
+
+
 
 class Person:
     """人物类"""
@@ -153,6 +160,7 @@ command=self.save_as).pack(side=tk.LEFT, padx=5)
 
 class ExpressManagementSystem:
     """快递管理系统"""
+    
     def __init__(self, root):
         self.root = root
         self.user_role = USER_ROLE  # 保存当前用户角色
@@ -324,6 +332,18 @@ class ExpressManagementSystem:
             messagebox.showinfo("普通用户模式", 
                 "您已进入普通用户模式。\n"
                 "可以使用快递取件和查询功能。")
+
+
+def change_language(self, lang):
+    from style_manager import CURRENT_LANG
+    CURRENT_LANG = lang
+    self.refresh_ui()
+
+def refresh_ui(self):
+    # 重新设置所有控件文本
+    self.update_title()
+    self.create_menu_bar()
+    # 其他界面控件也可遍历刷新
     
     def create_all_tabs(self):
         """创建所有标签页"""
@@ -397,15 +417,20 @@ class ExpressManagementSystem:
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
         
-        # 创建系统菜单
+        # 系统菜单
         system_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="系统", menu=system_menu)
-        
-        # 添加退出登录选项
         system_menu.add_command(label="退出登录", command=self.logout)
         system_menu.add_separator()
         system_menu.add_command(label="退出程序", command=self.exit_program)
         
+        # 主题菜单
+        theme_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="主题", menu=theme_menu)
+        themes = ["arc弧光纪", "plastik塑境集", "clearlooks清透观", "radiance焕光录", "equilux衡光赋", "breeze清飔集", "black墨韵调"]
+        for theme in themes:
+            theme_menu.add_command(label=theme, command=lambda t=theme: self.change_theme(t))
+
         if self.user_role == "admin":
             # 创建仓库菜单
             warehouse_menu = tk.Menu(menubar, tearoff=0)
@@ -710,14 +735,23 @@ class ExpressManagementSystem:
         }
         
         qr_path, _ = qrcode_create.generate_qr_code(express_info)
+
+    def change_theme(self, theme_name):
+        """一键切换主题"""
+        # ThemedTk 的 set_theme 方法
+        if hasattr(self.root, "set_theme"):
+            self.root.set_theme(theme_name)
+        else:
+            # 兼容普通 Tk，不做处理
+            messagebox.showinfo("提示", "当前窗口不支持主题切换，请使用 ThemedTk 启动程序。")
         
-        if qr_path:
+        if qr_path: # 这里报警不用管
             # 清空输入框
             self.clear_in_fields()
             # 显示二维码对话框
-            QRCodeDialog(self.root, qr_path, express_info)
+            QRCodeDialog(self.root, qr_path, express_info) # 这里报警不用管
         else:
-            messagebox.showwarning("警告", f"快递入库成功，但二维码生成失败！\n快递单号：{express_id}")
+            messagebox.showwarning("警告", f"快递入库成功，但二维码生成失败！\n快递单号：{express_id}") # 这里报警不用管
         
         # 更新区域和位置列表
         self.update_area_list()
@@ -1356,8 +1390,16 @@ class ExpressManagementSystem:
 
 def main():
     while True:
-        root = tk.Tk()
-        
+        root = ThemedTk(theme="arc")
+        # root = tk.Tk()
+        style = ttk.Style()
+        style.theme_use('clam')  # 可选: 'default', 'clam', 'alt', 'classic'
+        style.configure('TButton', font=('微软雅黑', 12), foreground='#0055aa')
+        style.configure('TLabel', font=('微软雅黑', 12))
+        style.configure('TEntry', font=('微软雅黑', 12))
+        style.configure('TNotebook', background='#f7f7f7')
+        style.configure('TFrame', background='#f7f7f7')
+    
         # 创建TOTP管理器
         totp_manager = TOTPManager()
         
@@ -1387,6 +1429,7 @@ def main():
             # 用户取消选择，返回角色选择
             root.destroy()
             continue
+        
         # 创建主程序实例
         app = ExpressManagementSystem(root)
         root.mainloop()

@@ -10,7 +10,7 @@ class RoleSelectionDialog:
         self.result = None
         
         # 设置对话框大小和位置
-        dialog_width = 300
+        dialog_width = 500
         dialog_height = 150
         screen_width = parent.winfo_screenwidth()
         screen_height = parent.winfo_screenheight()
@@ -23,7 +23,7 @@ class RoleSelectionDialog:
         self.dialog.grab_set()
         
         # 创建标签
-        tk.Label(self.dialog, text="请选择您的角色：", 
+        ttk.Label(self.dialog, text="请选择您的角色：", 
                 font=("Arial", 12)).pack(pady=20)
         
         # 创建按钮框架
@@ -243,4 +243,45 @@ class AdminLoginDialog:
             self.dialog.after_cancel(self.update_timer)
             self.update_timer = None
         self.result = False
+        self.dialog.destroy()
+
+
+# 全局样式设置（建议放在主入口，但此处演示）
+def setup_styles():
+    style = ttk.Style()
+    style.theme_use('clam')
+    style.configure('TLabel', font=('微软雅黑', 12))
+    style.configure('TButton', font=('微软雅黑', 12), foreground='#0055aa')
+    style.configure('TEntry', font=('微软雅黑', 12))
+    style.configure('TFrame', background='#f7f7f7')
+    style.configure('TLabelFrame', font=('微软雅黑', 13, 'bold'))
+
+# 在对话框类初始化时调用 setup_styles()
+class ExampleDialog:
+    def __init__(self, parent):
+        setup_styles()
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("示例对话框")
+        self.dialog.configure(bg='#f7f7f7')
+        
+        frame = ttk.LabelFrame(self.dialog, text="信息填写")
+        frame.pack(padx=20, pady=15, fill="x")
+        
+        ttk.Label(frame, text="姓名:").grid(row=0, column=0, padx=8, pady=8, sticky="e")
+        self.name_entry = ttk.Entry(frame, width=25)
+        self.name_entry.grid(row=0, column=1, padx=8, pady=8)
+        
+        ttk.Label(frame, text="手机号:").grid(row=1, column=0, padx=8, pady=8, sticky="e")
+        self.phone_entry = ttk.Entry(frame, width=25)
+        self.phone_entry.grid(row=1, column=1, padx=8, pady=8)
+        
+        btn_frame = ttk.Frame(self.dialog)
+        btn_frame.pack(pady=10)
+        ttk.Button(btn_frame, text="确定", command=self.on_ok).pack(side=tk.LEFT, padx=10)
+        ttk.Button(btn_frame, text="取消", command=self.dialog.destroy).pack(side=tk.LEFT, padx=10)
+    
+    def on_ok(self):
+        name = self.name_entry.get()
+        phone = self.phone_entry.get()
+        messagebox.showinfo("信息", f"姓名: {name}\n手机号: {phone}")
         self.dialog.destroy()

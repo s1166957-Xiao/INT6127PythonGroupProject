@@ -4,20 +4,96 @@ from tkinter import messagebox
 
 class AreaDialog:
     """仓库区域管理对话框"""
+    # def __init__(self, parent, db):
+    #     self.dialog = tk.Toplevel(parent)
+    #     self.parent = parent
+    #     self.db = db
+        
+    #     self.dialog.title("仓库区域管理")
+    #     self.setup_ui()
+    #     self.load_areas()
+        
+    #     # 设置模态对话框
+    #     self.dialog.transient(parent)
+    #     self.dialog.grab_set()
+    #     parent.wait_window(self.dialog)
+    #     # 这里我改了样式
     def __init__(self, parent, db):
-        self.dialog = tk.Toplevel(parent)
         self.parent = parent
         self.db = db
-        
+        self.dialog = tk.Toplevel(parent)
         self.dialog.title("仓库区域管理")
-        self.setup_ui()
-        self.load_areas()
-        
-        # 设置模态对话框
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
-        parent.wait_window(self.dialog)
-    
+        self.dialog.configure(bg='#f7f7f7')
+
+        # 全局样式设置
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TLabel', font=('微软雅黑', 12))
+        style.configure('TButton', font=('微软雅黑', 12), foreground='#0055aa')
+        style.configure('TEntry', font=('微软雅黑', 12))
+        style.configure('TFrame', background='#f7f7f7')
+        style.configure('TLabelFrame', font=('微软雅黑', 13, 'bold'))
+
+        # 区域信息输入框
+        info_frame = ttk.LabelFrame(self.dialog, text="区域信息")
+        info_frame.pack(padx=20, pady=15, fill="x")
+
+        ttk.Label(info_frame, text="区域ID:").grid(row=0, column=0, padx=8, pady=8, sticky="e")
+        self.area_id_var = tk.StringVar()
+        self.area_id_entry = ttk.Entry(info_frame, textvariable=self.area_id_var, width=25)
+        self.area_id_entry.grid(row=0, column=1, padx=8, pady=8)
+
+        ttk.Label(info_frame, text="区域名称:").grid(row=1, column=0, padx=8, pady=8, sticky="e")
+        self.area_name_var = tk.StringVar()
+        self.area_name_entry = ttk.Entry(info_frame, textvariable=self.area_name_var, width=25)
+        self.area_name_entry.grid(row=1, column=1, padx=8, pady=8)
+
+        ttk.Label(info_frame, text="负责人:").grid(row=2, column=0, padx=8, pady=8, sticky="e")
+        self.manager_var = tk.StringVar()
+        self.manager_entry = ttk.Entry(info_frame, textvariable=self.manager_var, width=25)
+        self.manager_entry.grid(row=2, column=1, padx=8, pady=8)
+
+        ttk.Label(info_frame, text="联系电话:").grid(row=3, column=0, padx=8, pady=8, sticky="e")
+        self.phone_var = tk.StringVar()
+        self.phone_entry = ttk.Entry(info_frame, textvariable=self.phone_var, width=25)
+        self.phone_entry.grid(row=3, column=1, padx=8, pady=8)
+
+        ttk.Label(info_frame, text="备注:").grid(row=4, column=0, padx=8, pady=8, sticky="e")
+        self.description_var = tk.StringVar()
+        self.description_entry = ttk.Entry(info_frame, textvariable=self.description_var, width=25)
+        self.description_entry.grid(row=4, column=1, padx=8, pady=8)
+
+        # 按钮区域
+        btn_frame = ttk.Frame(self.dialog)
+        btn_frame.pack(pady=10)
+        ttk.Button(btn_frame, text="新增", command=self.add_area).pack(side=tk.LEFT, padx=10)
+        ttk.Button(btn_frame, text="修改", command=self.update_area).pack(side=tk.LEFT, padx=10)
+        ttk.Button(btn_frame, text="删除", command=self.delete_area).pack(side=tk.LEFT, padx=10)
+        ttk.Button(btn_frame, text="关闭", command=self.dialog.destroy).pack(side=tk.LEFT, padx=10)
+
+        # 区域列表
+        list_frame = ttk.LabelFrame(self.dialog, text="区域列表")
+        list_frame.pack(padx=20, pady=10, fill="both", expand=True)
+
+        columns = ("区域ID", "区域名称", "负责人", "联系电话", "备注")
+        self.tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=8)
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, anchor="center", width=120)
+        self.tree.pack(fill="both", expand=True, padx=8, pady=8)
+
+        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+
+        self.load_area_list()
+    def on_tree_select(self, event):
+        selected = self.tree.selection()
+        if selected:
+            values = self.tree.item(selected[0], "values")
+            self.area_id_var.set(values[0])
+            self.area_name_var.set(values[1])
+            self.manager_var.set(values[2])
+            self.phone_var.set(values[3])
+            self.description_var.set(values[4])
     def setup_ui(self):
         """设置用户界面"""
         # 区域列表

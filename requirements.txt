@@ -6,3 +6,4 @@ pyzbar>=0.1.9          # 二维码识别（对应pyzbar.pyzbar，用于解码二
 Pillow>=9.0.0
 matplotlib>=3.7.1      # 数据可视化图表
 pyotp>=2.9.0          # TOTP双因素认证实现
+ttkthemes  #主题切换
