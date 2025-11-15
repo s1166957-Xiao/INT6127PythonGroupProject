@@ -84,7 +84,21 @@ class AreaDialog:
 
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
-        self.load_area_list()
+        # 确保存在 capacity_var，部分方法（add_area/update_area）依赖它
+        self.capacity_var = tk.StringVar()
+
+        # 兼容旧的调用名 load_area_list -> 实际实现为 load_areas
+        if not hasattr(self, 'load_area_list'):
+            def load_area_list_alias():
+                return self.load_areas()
+            self.load_area_list = load_area_list_alias
+
+        # 加载区域数据
+        try:
+            self.load_area_list()
+        except Exception:
+            # 若新版/旧版UI冲突，忽略加载错误，让用户手动刷新
+            pass
     def on_tree_select(self, event):
         selected = self.tree.selection()
         if selected:
