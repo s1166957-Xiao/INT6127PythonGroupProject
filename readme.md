@@ -65,5 +65,3 @@ pip install -r requirements.txt
 This project does not include a license file by default. Add a `LICENSE` if you want to specify reuse terms (for example, MIT License).
 
 ---
-
-If you want, I can also add a short `CONTRIBUTING.md`, include example screenshots, or extract a minimal `requirements.txt` with pinned versions. Tell me which you'd prefer next.
