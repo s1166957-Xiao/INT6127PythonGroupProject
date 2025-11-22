@@ -1,38 +1,3 @@
-# 一级标题（快捷键 Ctrl+1）
-## 二级标题（Ctrl+2）
-### 三级标题（Ctrl+3）
-
-### 1. 文本格式
-- 粗体：**这是粗体**（快捷键 Ctrl+B）
-- 斜体：*这是斜体*（快捷键 Ctrl+I）
-- 删除线：~~这是删除线~~
-- 超链接：[VS Code 官网](https://code.visualstudio.com/)（语法：[显示文本](链接地址)）
-
-### 2. 列表
-- 无序列表（开头输 `-` 或 `*`，按空格）
-  - 子列表（按 Tab 缩进）
-1. 有序列表（开头输 `1.`，按空格，下一行自动续号）
-2. 有序列表第二项
-
-### 3. 表格（插件自动补全）
-| 姓名 | 年龄 | 职业 |
-|------|------|------|
-| 张三 | 25   | 程序员 |
-| 李四 | 30   | 产品经理 |
-（输入 `|` 后，插件会自动补全表格结构，按 Tab 切换单元格）
-
-### 4. 图片（用 Paste Image 插件）
-- 截图（如按 Win+Shift+S 截图）
-- 回到 VS Code，按 Ctrl+Alt+V，自动生成：
-![图片描述](images/20241111153000.png)（图片默认存到当前目录的 `images` 文件夹，可在插件设置中修改路径）
-
-### 5. 代码块
-```python
-# 这是 Python 代码块（开头输 ```+语言名，按 Enter）
-print("Hello Markdown!")
-```
-
-
 # 第一章·项目简介
 ## 1. 项目解决了什么问题
 针对中小型快递站点（社区驿站、校园快递点）在运营中面临的效率低、易出错、管理难三大核心痛点：
@@ -142,4 +107,5 @@ python main.py
 | 启动时报`No module named 'tkinter'` | tkinter 未安装          | Windows：重装 Python 时勾选“tcl/tk”组件<br>Linux：`sudo apt-get install python3-tk` |
 | 二维码生成失败                   | PIL/qrcode 版本冲突     | 卸载并重装指定版本；<br>`pip uninstall pillow qrcode`；<br>`pip install pillow==10.1.0 qrcode==7.4.2` |
 | 数据库连接失败                   | 数据库文件无读写权限    | 右键项目文件夹→属性→安全→赋予当前用户“读写”权限                           |
+
 | 取件码验证通过但快递状态未更新   | 数据库事务未提交        | 检查 `DatabaseManager` 中 `update_express_status` 方法的事务提交逻辑       |
