@@ -1,18 +1,227 @@
-name: GitHub Actions Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
-on: [push]
+# .github/workflows/ci.yml
+name: 🚀 Express Management System CI/CD
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 每天凌晨2点运行完整测试
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.9'
+  CHAIN_ID: '1337'  # Ganache默认链ID
+
 jobs:
-  Explore-GitHub-Actions:
+  # 基础测试任务
+  test:
+    name: 🧪 运行测试套件
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
-        uses: actions/checkout@v5
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
-        run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+    - name: 📥 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 🐍 设置Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: 📦 缓存依赖包
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: 📋 安装系统依赖
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zbar-tools libzbar0 libzbar-dev
+        
+    - name: 📦 安装Python依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov flake8 black isort
+        
+    - name: 🔍 代码质量检查
+      run: |
+        # 代码格式检查
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # 代码复杂度检查
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        
+    - name: 🧪 运行依赖测试
+      run: |
+        python test_imports.py
+        
+    - name: 🧪 运行单元测试
+      run: |
+        python -m unittest discover -s unittest -p "test_*.py" -v
+        
+    - name: 🧪 运行区块链测试
+      run: |
+        python test_blockchain.py
+      continue-on-error: true  # 区块链测试可能因网络问题失败
+      
+    - name: 📊 生成测试报告
+      run: |
+        pytest --cov=. --cov-report=xml --cov-report=html
+      continue-on-error: true
+      
+    - name: 📤 上传测试报告
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-reports-${{ matrix.python-version }}
+        path: |
+          htmlcov/
+          coverage.xml
+
+  # 安全扫描任务
+  security:
+    name: 🔒 安全扫描
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: 📥 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 🐍 设置Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📦 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+        
+    - name: 🔍 依赖漏洞扫描
+      run: |
+        safety check --json --output safety-report.json || true
+        
+    - name: 🔍 代码安全扫描
+      run: |
+        bandit -r . -f json -o bandit-report.json || true
+        
+    - name: 📤 上传安全报告
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          safety-report.json
+          bandit-report.json
+
+  # 构建和打包任务
+  build:
+    name: 📦 构建应用
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📥 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 🐍 设置Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📦 安装构建工具
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        
+    - name: 🔨 构建可执行文件
+      run: |
+        pyinstaller --onefile --windowed \
+          --add-data "qrcodes:qrcodes" \
+          --add-data "*.db:." \
+          --name "ExpressManagement" \
+          main.py
+          
+    - name: 📦 创建发布包
+      run: |
+        mkdir -p dist/release
+        cp dist/ExpressManagement dist/release/
+        cp -r qrcodes dist/release/
+        cp *.md dist/release/
+        cp requirements.txt dist/release/
+        
+    - name: 📤 上传构建产物
+      uses: actions/upload-artifact@v3
+      with:
+        name: express-management-build
+        path: dist/release/
+
+  # 发布任务
+  release:
+    name: 🚀 创建发布
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📥 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 📥 下载构建产物
+      uses: actions/download-artifact@v3
+      with:
+        name: express-management-build
+        path: release/
+        
+    - name: 🏷️ 创建发布标签
+      id: create_tag
+      run: |
+        VERSION=$(date +'%Y%m%d-%H%M%S')
+        echo "TAG_NAME=v${VERSION}" >> $GITHUB_OUTPUT
+        echo "RELEASE_NAME=Express Management System ${VERSION}" >> $GITHUB_OUTPUT
+        
+    - name: 🚀 创建GitHub发布
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.create_tag.outputs.TAG_NAME }}
+        release_name: ${{ steps.create_tag.outputs.RELEASE_NAME }}
+        body: |
+          ## 🎉 快递管理系统自动发布
+          
+          ### 📋 构建信息
+          - **版本**: ${{ steps.create_tag.outputs.TAG_NAME }}
+          - **构建时间**: $(date)
+          - **提交**: ${{ github.sha }}
+          
+          ### 🚀 功能特性
+          - 智能快递管理
+          - 区块链数据同步
+          - TOTP安全认证
+          - 二维码优化体验
+          
+          ### 📦 包含文件
+          - ExpressManagement (主程序)
+          - qrcodes/ (二维码模板)
+          - 完整的文档和使用指南
+          
+          ### ⚠️ 使用说明
+          1. 下载并解压发布包
+          2. 运行 `ExpressManagement` 启动程序
+          3. 参考 README.md 进行配置
+          
+          ### 🔧 系统要求
+          - Python 3.8+
+          - 支持的操作系统: Windows, Linux, macOS
+        draft: false
+        prerelease: false
