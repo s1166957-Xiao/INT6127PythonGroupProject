@@ -69,7 +69,7 @@ None
 
 
 ## Blockchain Function Configuration (Optional)
-Note: Blockchain function is optional, the system can run all core business functions normally without blockchain configuration.
+**Note: Blockchain function is optional, the system can run all core business functions normally without blockchain configuration.**
 To use blockchain functions, blockchain connection configuration is required:
 ### Method 1: Using Local Test Network (Ganache) - Recommended
 
@@ -323,3 +323,4 @@ For questions or suggestions, please contact through:
 - Email: <contact-email>[Zhang Fangzhe](s1165489@s.eduhk.hk)
 
 ---
+
