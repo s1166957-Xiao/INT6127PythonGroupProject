@@ -33,6 +33,7 @@ This project is an intelligent management system designed specifically for campu
 
 
 ### Project Structure
+```
 INT6127PythonGroupProject-unstable/ 
 ├── main.py # Main program entry, system core logic 
 ├── area_dialog.py # Area management related interface and logic 
@@ -46,7 +47,7 @@ INT6127PythonGroupProject-unstable/
 ├── requirements.txt # Project dependency list 
 ├── express.db # SQLite database file 
 └── README.md # Project documentation
-
+```
 
 ### Development Environment Setup
 
