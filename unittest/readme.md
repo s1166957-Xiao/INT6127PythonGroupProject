@@ -1,1 +1,0 @@
-想要运行测试，请输入命令行python -m unittest discover -s unittest -p "test_*.py"
