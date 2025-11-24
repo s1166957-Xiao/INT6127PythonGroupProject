@@ -117,10 +117,10 @@ None
    ```
 
 
-### Blockchain Function Configuration (Optional)
+## Blockchain Function Configuration (Optional)
 **Note: Blockchain function is optional, the system can run all core business functions normally without blockchain configuration.**
 To use blockchain functions, blockchain connection configuration is required:
-## Method 1: Using Local Test Network (Ganache) - Recommended
+### Method 1: Using Local Test Network (Ganache) - Recommended
 
 ### 1. Install Ganache
 
@@ -165,7 +165,7 @@ After configuration is complete, you can:
 
 ---
 
-## Method 2: Using Public Testnet (Sepolia)
+### Method 2: Using Public Testnet (Sepolia)
 
 ### 1. Get Test Coins
 
@@ -192,7 +192,7 @@ Same as steps 4-5 in Method 1.
 
 ---
 
-## Method 3: Test Data Export Only (No Blockchain Connection)
+### Method 3: Test Data Export Only (No Blockchain Connection)
 
 If you only want to test data export functionality without real blockchain connection:
 
