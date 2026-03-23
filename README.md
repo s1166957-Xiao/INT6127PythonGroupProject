@@ -361,6 +361,6 @@ This project does not adopt MIT license, no LICENSE file 🙃.
 For questions or suggestions, please contact through:
 
 - Project Repository: [INT6127PythonGroupProject](https://github.com/s1166957-Xiao/INT6127PythonGroupProject)
-- Email: <contact-email>[Zhang Fangzhe](s1165489@s.eduhk.hk)
+- Email: <contact-email>
 
 ---
