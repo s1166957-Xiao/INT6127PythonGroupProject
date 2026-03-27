@@ -1,0 +1,80 @@
+LANGUAGES = {
+    "zh": {
+        "system": "系统",
+        "theme": "主题",
+        "language": "语言",
+        "logout": "退出登录",
+        "exit": "退出程序",
+        "express_mgmt": "快递管理系统",
+        "admin_mode": "（管理员模式）",
+        "user_mode": "（普通用户模式）",
+        "area_mgmt": "区域管理",
+        "security": "安全",
+        "reset_key": "重置安全密钥",
+        "warning": "警告",
+        "success": "成功",
+        "fail": "失败",
+        "confirm": "确认",
+        "info": "信息",
+        "add": "新增",
+        "edit": "修改",
+        "delete": "删除",
+        "close": "关闭",
+        "express_id": "快递ID",
+        "pick_code": "取件码",
+        "sender": "发件人",
+        "receiver": "收件人",
+        "location": "位置",
+        "notes": "备注",
+        "status": "状态",
+        "area_id": "区域ID",
+        "area_name": "区域名称",
+        "manager": "负责人",
+        "phone": "联系电话",
+        "description": "备注",
+        # ...补充所有界面文本...
+    },
+    "en": {
+        "system": "System",
+        "theme": "Theme",
+        "language": "Language",
+        "logout": "Logout",
+        "exit": "Exit",
+        "express_mgmt": "Express Management System",
+        "admin_mode": "(Admin Mode)",
+        "user_mode": "(User Mode)",
+        "area_mgmt": "Area Management",
+        "security": "Security",
+        "reset_key": "Reset Security Key",
+        "warning": "Warning",
+        "success": "Success",
+        "fail": "Fail",
+        "confirm": "Confirm",
+        "info": "Info",
+        "add": "Add",
+        "edit": "Edit",
+        "delete": "Delete",
+        "close": "Close",
+        "express_id": "Express ID",
+        "pick_code": "Pick Code",
+        "sender": "Sender",
+        "receiver": "Receiver",
+        "location": "Location",
+        "notes": "Notes",
+        "status": "Status",
+        "area_id": "Area ID",
+        "area_name": "Area Name",
+        "manager": "Manager",
+        "phone": "Phone",
+        "description": "Description",
+        # ...补充所有界面文本...
+    }
+}
+
+CURRENT_LANG = "zh"
+
+def tr(key, **kwargs):
+    text = LANGUAGES.get(CURRENT_LANG, {}).get(key, LANGUAGES["en"].get(key, key))
+    if kwargs:
+        return text.format(**kwargs)
+    return text
